@@ -1,0 +1,200 @@
+# HG changeset patch
+# Parent e96240de7e50156dda5eaf1242813a918d1dd4fe
+# User KO Myung-Hun <komh@chollian.net>
+Support OS/2 build
+
+diff --git a/linkHack.pri b/linkHack.pri
+--- a/linkHack.pri
++++ b/linkHack.pri
+@@ -12,36 +12,38 @@
+     }
+ }
+ 
+ TARGETS=$$OBJECTS_DIR/sbcsdat$$QMAKE_EXT_OBJ
+ !contains(TEMPLATE,vcapp) {
+     TARGETS+=$$OBJECTS_DIR/utf8$$QMAKE_EXT_OBJ
+ }
+ 
+-win32 {
+-    OBJECTS_DIR=$$replace(OBJECTS_DIR,/,\)
+-    TARGETS=$$replace(TARGETS,/,\)
++win32|os2 {
++    OBJECTS_DIR=$$replace(OBJECTS_DIR,/,\\)
++    TARGETS=$$replace(TARGETS,/,\\)
+ }
+ 
+ QMAKE_EXTRA_TARGETS*=$$TARGETS
+ PRE_TARGETDEPS*=$$TARGETS
+ QMAKE_LFLAGS*=$$TARGETS
+ QMAKE_CLEAN*=$$TARGETS
+ 
+ sbcsdat_o_dep=$$PUTTY_HOME/charset/sbcsdat.c $$PUTTY_HOME/charset/charset.h $$PUTTY_HOME/charset/internal.h
+ 
+-win32 {
+-    $$OBJECTS_DIR\sbcsdat.obj.depends=$$sbcsdat_o_dep
++win32|os2 {
++    $$OBJECTS_DIR\\sbcsdat.obj.depends=$$sbcsdat_o_dep
++    $$OBJECTS_DIR\\sbcsdat.obj.commands=$(CC) -c $(CFLAGS) $(INCPATH) -o $$OBJECTS_DIR\\sbcsdat$$QMAKE_EXT_OBJ $$PUTTY_HOME\\charset\\sbcsdat.c
+ } else {
+     $$OBJECTS_DIR/sbcsdat.o.depends=$$sbcsdat_o_dep
+     $$OBJECTS_DIR/sbcsdat.o.commands=$(CC) -c $(CFLAGS) $(INCPATH) -o $$OBJECTS_DIR/sbcsdat$$QMAKE_EXT_OBJ $$PUTTY_HOME/charset/sbcsdat.c
+ }
+ 
+ 
+ utf8_o_dep=$$PUTTY_HOME/charset/utf8.c $$PUTTY_HOME/charset/charset.h $$PUTTY_HOME/charset/internal.h
+ 
+-win32 {
+-    $$OBJECTS_DIR\utf8.obj.depends=$$utf8_o_dep
++win32|os2 {
++    $$OBJECTS_DIR\\utf8.obj.depends=$$utf8_o_dep
++    $$OBJECTS_DIR\\utf8.obj.commands=$(CC) -c $(CFLAGS) $(INCPATH) -o $$OBJECTS_DIR\\utf8$$QMAKE_EXT_OBJ $$PUTTY_HOME\\charset\\utf8.c
+ } else {
+     $$OBJECTS_DIR/utf8.o.depends=$$utf8_o_dep
+     $$OBJECTS_DIR/utf8.o.commands=$(CC) -c $(CFLAGS) $(INCPATH) -o $$OBJECTS_DIR/utf8$$QMAKE_EXT_OBJ $$PUTTY_HOME/charset/utf8.c
+ }
+diff --git a/putty-32.ico b/putty-32.ico
+new file mode 100644
+index 0000000000000000000000000000000000000000..35492592b226ded03f9ae1bcf89863800dc59588
+GIT binary patch
+literal 3066
+zc%1E)J8T<A5QfJ*K29{nhkPV0*?eCpN^9#8+e+dDN@2jj6$a8w>CUCDQ>o$rmFiBV
+zJC{?sI6$ea-tAS_sC220DU3{hijUZ)EE-7C<>MY_x%cnv&dlC{&%8Ava`1U-5f#uM
+z&~J1LAE2twX7_*3Oz#hH*QPN_bbNd)M2ClmrBdnq{QT_f3==OdE{4P5n>TOP*VnhU
+zwk|I(nYq<!y?pud`Sa&{dwaHRzj*QD=;%m17LoVw-)k69B$UMa`}=R-z9o-OPfr<Z
+z_^e5+uAv|heEY$N4<E=iuV24DI5?mXQ?y>MW3wkGC+agrvA~sQUcGvyKBf@6hJ6<J
+ziDFI+B}SAqG7=e95}!CSgoeS;ASMZoCd3%W&(KIh>KpM5C)f<eu?ILI^)QRYGa8|f
+zRWO|;WO8H1c!cGc66S;@K?qFBtSri^=*OZldxoJ$qks_}1xf+A0lV0Cpe~{a*bBr9
+z6rDsF;h<qT6;WXoO+*r5w1~t*Q0RyvrJ=BgR3HRV7f~8<nOzn#8WMX%E*h&V;vyN$
+zWY`t*FiXUP2O(eB7x6`XA;@TyDh<&QCTtkl6A6j1G@<@z2uf4~#-Imjz#5PSngo&r
+zL@`q=6e~Ij0*u8)O=I$qgjl>-y_o!%{aE~1{g}d-L)0-=G&PKxMlmIUM#w`fXo}Kc
+zPZ$prnZ!6oBCLp%Vo@{N4f2Gdy2`GKtLiFw%ASg+>M8lir;4xYD}~A->aH3pMaq#%
+zq#EILli;)@s%S`)jv`c_)TRIVXXpsnfNovctD&*|^*S3&?7NA*oLNi%9ZQt^#QuQ`
+zuSEKYYxFkM%ZdFsv42jiPHix;@2K>j*o%oB=WY0{tYpelR%R^E$*P65!j#T~X0z#(
+ztwLvSPFS@!a#L0_PO(_5b?lDypi=!(SIVtTnNBd4mC1ggTfIHcnwirLi^i_q`HYpd
+zl3kzE4U5fcty!GmI8Hg2x94@k;Wk2;QRvi*dxb)|I<KqbOL=$7&Z<?PPv1oM^N-(6
+z`Jr`#?ru7j>UQy!N`1dbcdOSN2^ah8_lxQDVt=Xb;Qr=zda*9mZ8sWERu=10>%FB$
+z?~Y~Npc~U2Y&Ck0b4@MAy2p1X)E;g%+U;z1`BSE)+0KoR$wofE(;O@<E%lmp3rFh#
+z$XHgrICIz;9lf<orBbO@dk_wqw%w^^L9K(hoT+dbr^G4t?~ix{U8C<fy9M~PI<^hZ
+z&CmAP?mt|b(CGJ{u9ik@>_ETrMMT*v;g#F_n`Qjzv0J&)PG?RxtU}m$QmtlZG+U+C
+z?woFz?L*iuW@eO&tqr?8pUlnns3_$;l7uT~GG*tEvwdCGGySc`pnmTPyI^Imc>+e1
+zH-19(+T)7fE6hKk6KeT&l=;zSda*9u-Q0Y1<?&`+DwR&RANJCVbx`)&-EYyQ(%psr
+t#<7lge6w!GO}g8^*fVnGnm5;&%5J_igKYCP-LRUm{${sc`%2xe=PxX&2af;%
+
+diff --git a/qPutty.pro b/qPutty.pro
+--- a/qPutty.pro
++++ b/qPutty.pro
+@@ -1,17 +1,17 @@
+ include(qPutty.pri)
+ include(linkHack.pri)
+ TEMPLATE = app
+ DEPENDPATH *= .
+ isEmpty(VERSION) {
+     VERSION=$$system(hg id -n) 
+ }
+ isEmpty(PUTTY_SRC_VERSION){
+-    xx=$$system(svn update $$PUTTY_HOME)
++    xx=$$system(svn update -r9181 $$PUTTY_HOME)
+     SVN_LOG=$$system(svn log -l1 $$PUTTY_HOME)
+     tmp=$$member(SVN_LOG,1)
+     PUTTY_SRC_VERSION=$$replace(tmp,r,)
+ }
+ DEFINES *= VERSION=\\\"$$VERSION\\\" PUTTY_VERSION=\\\"$$PUTTY_SRC_VERSION\\\"
+ 
+ CONFIG(debug,debug|release) {
+     message("MODE: Debug")
+@@ -42,9 +42,18 @@
+     QMAKE_EXTRA_TARGETS*=patchInfoPlist
+     POST_TARGETDEPS*=patchInfoPlist
+     SHORT_VERSION=$$sprintf(%1.%2,$$VERSION,$$PUTTY_SRC_VERSION)
+     APP=$$sprintf(%1.app,$$TARGET)
+     patchInfoPlist.depends=$$APP/Contents/$$QMAKE_INFO_PLIST
+     patchInfoPlist.commands=$(SED) -e \'s/@SHORT_VERSION@/$$SHORT_VERSION/g\' -i \"\"  $<
+ }
+ 
++os2 {
++    RC_FILE = qputty_os2.rc
++    DEFINES += NO_IPV6 socklen_t=int SHUT_WR=1
++}
++
+ message($$TARGET "with PUTTY_HOME="$$PUTTY_HOME" GEN_SBCSDAT="$$GEN_SBCSDAT" KERBEROS="$$KERBEROS" GSSGLUE="$$GSSGLUE)
++
++OTHER_FILES += \
++    putty-32.ico \
++    qputty_os2.rc
+diff --git a/qmake.cmd b/qmake.cmd
+new file mode 100755
+--- /dev/null
++++ b/qmake.cmd
+@@ -0,0 +1,1 @@
++qmake.exe KERBEROS=no GSSGLUE=no 
+diff --git a/qputty_os2.rc b/qputty_os2.rc
+new file mode 100644
+--- /dev/null
++++ b/qputty_os2.rc
+@@ -0,0 +1,1 @@
++ICON 1 putty-32.ico
+diff --git a/qtwin.cpp b/qtwin.cpp
+--- a/qtwin.cpp
++++ b/qtwin.cpp
+@@ -34,16 +34,21 @@
+ #define ASSERT(x) enum {CAT(assertion_,__LINE__) = 1 / (x)}
+ 
+ #include "structs.h"
+ 
+ #ifdef Q_WS_WIN
+ typedef WId WID;
+ #endif
+ 
++#ifdef Q_WS_PM
++#define DEFAULT_FONT "Courier New,10"
++typedef long WID;
++#endif
++
+ #ifdef Q_WS_MAC
+ #define DEFAULT_FONT "Monaco,10"
+ typedef long WID;
+ #endif
+ 
+ #ifdef Q_WS_X11
+ #include <QX11Info>
+ #define DEFAULT_FONT "Courier New,10"
+@@ -67,19 +72,21 @@
+ #include <time.h>
+ #include <errno.h>
+ #include <fcntl.h>
+ #include "utils.h"
+ #ifndef Q_WS_WIN
+ #include <unistd.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
++#ifndef Q_WS_PM
+ #include <X11/Xlib.h>
+ #include <X11/Xutil.h>
+ #include <X11/Xatom.h>
++#endif
+ extern int use_pty_argv;
+ #else
+     char *do_select(SOCKET skt, int startup);
+     void write_aclip(void *frontend, char *data, int len, int must_deselect);
+     void cleanup_exit(int code);
+     Backend *select_backend(Config *cfg);
+     #define WM_IGNORE_CLIP (WM_APP + 2)
+     const int use_pty_argv = FALSE;
+diff --git a/sbcsdat.pri b/sbcsdat.pri
+--- a/sbcsdat.pri
++++ b/sbcsdat.pri
+@@ -1,10 +1,10 @@
+-win32 {
+-    QMAKE_EXTRA_TARGETS*=$$PUTTY_HOME\charset\sbcsdat.c
+-    $$PUTTY_HOME\charset\sbcsdat.c.depends = $$PUTTY_HOME\charset\sbcs.dat $$PUTTY_HOME\charset\sbcsgen.pl
+-    $$PUTTY_HOME\charset\sbcsdat.c.commands = cd $$PUTTY_HOME\charset && perl sbcsgen.pl && cd $$HOME
++win32|os2 {
++    QMAKE_EXTRA_TARGETS*=$$PUTTY_HOME\\charset\\sbcsdat.c
++    $$PUTTY_HOME\\charset\\sbcsdat.c.depends = $$PUTTY_HOME\\charset\\sbcs.dat $$PUTTY_HOME\\charset\\sbcsgen.pl
++    $$PUTTY_HOME\\charset\\sbcsdat.c.commands = cd $$replace(PUTTY_HOME, /, \\)\\charset && perl sbcsgen.pl && cd $$HOME
+ } else {
+     QMAKE_EXTRA_TARGETS*=$$PUTTY_HOME/charset/sbcsdat.c
+     $$PUTTY_HOME/charset/sbcsdat.c.depends = $$PUTTY_HOME/charset/sbcs.dat $$PUTTY_HOME/charset/sbcsgen.pl
+     $$PUTTY_HOME/charset/sbcsdat.c.commands = cd $$PUTTY_HOME/charset && perl sbcsgen.pl && cd $$HOME
+ }
+ 

@@ -1,0 +1,88 @@
+# HG changeset patch
+# Parent 1b205ce19f29997b2cb00ef0abc6da7301dda8f3
+# User KO Myung-Hun <komh@chollian.net>
+Process DBCS correctly in settings
+
+diff --git a/configWidget.cpp b/configWidget.cpp
+--- a/configWidget.cpp
++++ b/configWidget.cpp
+@@ -219,24 +219,26 @@
+     {
+         if(((QRadioButton*)rb[i])->isChecked()) return rb.size()-i-1;
+     }
+     return 0;
+ }
+ void 
+ ConfigWidget::setEditBox(union control* ctrl,const char* text)
+ {
++    QString qttext(QString::fromLocal8Bit(text));
++
+     if(ctrl->editbox.has_list)
+     {
+         QComboBox* c=(QComboBox*)_controlToWidget.values(ctrl)[0];
+-        c->setCurrentIndex(c->findText(text,Qt::MatchFixedString));
++        c->setCurrentIndex(c->findText(qttext,Qt::MatchFixedString));
+     }
+     else
+     {
+-        ((QLineEdit*)_controlToWidget.values(ctrl)[0])->setText(text);
++        ((QLineEdit*)_controlToWidget.values(ctrl)[0])->setText(qttext);
+     }
+ }
+ 
+ void 
+ ConfigWidget::editBox(union control* ctrl,char* buffer,int length) const
+ {
+     QByteArray a;
+     if(ctrl->editbox.has_list)
+@@ -249,17 +251,17 @@
+     }
+     strncpy(buffer,a.data(),length);
+     buffer[length-1]='\0';
+ }
+ 
+ void 
+ ConfigWidget::setFileBox(union control* ctrl,const char* text)
+ {
+-    ((QLineEdit*)_controlToWidget.values(ctrl)[0])->setText(text);
++    ((QLineEdit*)_controlToWidget.values(ctrl)[0])->setText(QString::fromLocal8Bit(text));
+ }
+ 
+ void 
+ ConfigWidget::fileBox(union control* ctrl,char* buffer,int length) const
+ {
+     QByteArray a=((QLineEdit*)_controlToWidget.values(ctrl)[0])->text().toLocal8Bit();
+     strncpy(buffer,a.data(),length);
+     buffer[length-1]='\0';
+diff --git a/qtwin.cpp b/qtwin.cpp
+--- a/qtwin.cpp
++++ b/qtwin.cpp
+@@ -913,24 +913,24 @@
+ 
+     return err;
+ }
+ 
+ 
+ void setup_fonts_ucs(struct gui_data *inst)
+ {
+     inst->fonts[0] = new QFont();
+-    inst->fonts[0]->fromString(inst->cfg.font.name);
++    inst->fonts[0]->fromString(QString::fromLocal8Bit(inst->cfg.font.name));
+     inst->fonts[1] = new QFont();
+-    inst->fonts[1]->fromString(inst->cfg.boldfont.name[0]?inst->cfg.boldfont.name:inst->cfg.font.name);
++    inst->fonts[1]->fromString(QString::fromLocal8Bit(inst->cfg.boldfont.name[0]?inst->cfg.boldfont.name:inst->cfg.font.name));
+     inst->fonts[1]->setBold(true);
+     inst->fonts[2] = new QFont();
+-    inst->fonts[2]->fromString(inst->cfg.widefont.name[0]?inst->cfg.widefont.name:inst->cfg.font.name);
++    inst->fonts[2]->fromString(QString::fromLocal8Bit(inst->cfg.widefont.name[0]?inst->cfg.widefont.name:inst->cfg.font.name));
+     inst->fonts[3] = new QFont();
+-    inst->fonts[3]->fromString(inst->cfg.wideboldfont.name[0]?inst->cfg.wideboldfont.name:inst->cfg.font.name);
++    inst->fonts[3]->fromString(QString::fromLocal8Bit(inst->cfg.wideboldfont.name[0]?inst->cfg.wideboldfont.name:inst->cfg.font.name));
+     inst->fonts[3]->setBold(true);
+     QFont::StyleStrategy aa;
+     switch(inst->cfg.font_quality)
+     {
+         case FQ_DEFAULT:
+         case FQ_NONANTIALIASED:
+             aa=QFont::NoAntialias;
+             break;

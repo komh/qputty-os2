@@ -1,0 +1,10 @@
+0000-support-os2-build.diff
+0001-send-esc-key-on-os2.diff
+0002-enable-clipboard-support-on-os2.diff
+0003-process-dbcs-correctly-in-settings.diff
+0004-process-dbcs-correctly-on-terminal.diff
+0005-implement-inputMethodQuery.diff
+0006-support-dbcs-charset.diff
+0007-use-mouse-right-button-to-paste.diff
+0008-support-to-change-charset-on-the-fly.diff
+0009-add-some-missing-terminal-keys.diff

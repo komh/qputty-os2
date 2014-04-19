@@ -1,0 +1,70 @@
+# HG changeset patch
+# Parent e7d6a32400b93fd92ad9e845d886d255964de137
+# User KO Myung-Hun <komh@chollian.net>
+Implement inputMethodQuery
+
+diff --git a/terminalWidget.cpp b/terminalWidget.cpp
+--- a/terminalWidget.cpp
++++ b/terminalWidget.cpp
+@@ -574,16 +574,40 @@
+ }
+ 
+ bool 
+ Widget::focusNextPrevChild(bool)
+ {
+     return false;
+ }
+ 
++QVariant
++Widget::inputMethodQuery(Qt::InputMethodQuery query) const
++{
++    switch (query)
++    {
++        case Qt::ImMicroFocus:
++        {
++            QRect rect;
++
++            rect.setX(_cursor.col()*_inst->font_width);
++            rect.setY(_cursor.line()*_inst->font_height);
++            rect.setWidth(_inst->font_width);
++            rect.setHeight(_inst->font_height);
++
++            return rect;
++        }
++
++        default:
++            break;
++    }
++
++    return QWidget::inputMethodQuery(query);
++}
++
+ void 
+ Widget::sendKey(char k,char c) const
+ {
+     sendText(QString("\033%1%2").arg(c).arg(k));
+ }
+ 
+ void 
+ Widget::sendFunctionKey(int i,const QKeyEvent& e) const
+diff --git a/terminalWidget.h b/terminalWidget.h
+--- a/terminalWidget.h
++++ b/terminalWidget.h
+@@ -89,16 +89,17 @@
+     virtual void wheelEvent(QWheelEvent* e);
+     virtual void contextMenuEvent(QContextMenuEvent* e);
+     virtual void keyPressEvent(QKeyEvent* e);
+     virtual void paintEvent(QPaintEvent *e);
+     virtual void focusInEvent(QFocusEvent *e);
+     virtual void focusOutEvent(QFocusEvent *e);
+     virtual void customEvent(QEvent *e);
+     virtual bool focusNextPrevChild(bool next);
++    virtual QVariant inputMethodQuery(Qt::InputMethodQuery query) const;
+ 
+     //helper
+     virtual void sendKey(char k,char c='[') const;
+     virtual void sendFunctionKey(int i,const QKeyEvent& e) const;
+     virtual void sendCursorKey(char k,const QKeyEvent& e) const;
+     virtual void sendEditKey(char k,const QKeyEvent& e) const;
+     virtual void scrollTermBy(int lineCount);
+ #ifdef Q_WS_WIN

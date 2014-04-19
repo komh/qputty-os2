@@ -1,0 +1,137 @@
+# HG changeset patch
+# Parent 4d23eb304c0966b8a66506c1406964ce2f2dce5d
+# User KO Myung-Hun <komh@chollian.net>
+Support to change charset on the fly
+
+diff --git a/qtwin.cpp b/qtwin.cpp
+--- a/qtwin.cpp
++++ b/qtwin.cpp
+@@ -956,16 +956,20 @@
+     if(!ConfigWidget::isValidFont(*inst->fonts[0]))
+     {
+         inst->cfg.vtmode=VT_POORMAN;
+     }
+     inst->direct_to_font = init_ucs(&inst->ucsdata, inst->cfg.line_codepage,
+ 				    inst->cfg.utf8_override, CS_ISO8859_1,
+ 				    inst->cfg.vtmode);
+ #endif
++
++    inst->translation = QTextCodec::codecForName(inst->cfg.line_codepage);
++    if (!inst->translation)
++        inst->translation = QTextCodec::codecForName("UTF-8");
+ }
+ 
+ void set_geom_hints(struct gui_data *)
+ {
+ }
+ 
+ void update_specials_menu(void *)
+ {
+diff --git a/terminalWidget.cpp b/terminalWidget.cpp
+--- a/terminalWidget.cpp
++++ b/terminalWidget.cpp
+@@ -35,16 +35,17 @@
+ //qt_x11_set_global_double_buffer(false);
+ 
+ extern "C" {
+ #include "platform.h"
+ }
+ 
+ extern "C++" {
+     void start_backend(struct gui_data *inst);
++    void setup_fonts_ucs(struct gui_data *inst); // in qtwin.cpp
+ }
+ 
+ namespace PTerminal
+ {
+ Widget::Widget(struct ::gui_data* inst,QWidget* p):AbstractTerminalWidget(p),_inst(inst),_selectedText(""),_nextNow(0),_timer(this),_cursor(this),_text(this),_minDelta(120),_transform(QTransform::fromScale(1,1))
+ {
+     setFocusPolicy(Qt::StrongFocus);
+     setFont(QFont(platform_default_fontspec("Font").name));
+@@ -383,36 +384,64 @@
+     e->setAccepted(false);
+ }
+ 
+ void 
+ Widget::keyPressEvent(QKeyEvent* e) 
+ {
+     switch(e->key())
+     {
++        case Qt::Key_Return:
++        case Qt::Key_Enter:
+ #ifdef Q_WS_WIN
+-        case Qt::Key_Return:
+             if(e->modifiers()==Qt::AltModifier && _inst->cfg.fullscreenonaltenter) 
+             {
+                 QWidget* p=static_cast<QWidget*>(parent());
+                 if(p->isFullScreen())
+                 {
+                     p->showNormal();
+                 }
+                 else
+                 {
+                     p->showFullScreen();
+                 }
+             }
+             else
++#endif
++            if((e->modifiers() & ~Qt::KeypadModifier) == Qt::ShiftModifier)
++            {
++                QMenu popup;
++                QAction* act;
++                const char* cp;
++
++                for(int i = 0; (cp = cp_enumerate(i)) != 0; ++i)
++                {
++                    act = popup.addAction(cp);
++                    act->setCheckable(true);
++
++                    if(strcmp(cp, _inst->cfg.line_codepage) == 0)
++                    {
++                        act->setChecked(true);
++                        popup.setActiveAction(act);
++                    }
++                }
++
++                act = popup.exec(QCursor::pos());
++                if (act)
++                {
++                    strcpy(_inst->cfg.line_codepage, act->text().toLocal8Bit());
++
++                    setup_fonts_ucs(_inst);
++                }
++            }
++            else
+             {
+                 goto goAhead;
+             }
+             break;
+-#endif
+         case Qt::Key_Insert:
+             if(e->modifiers()==Qt::ShiftModifier)
+             {
+                 paste();
+             }
+             break;
+         case Qt::Key_PageUp:
+             if(e->modifiers()==Qt::ShiftModifier)
+@@ -484,19 +513,17 @@
+         case Qt::Key_F15:
+         case Qt::Key_F16:
+         case Qt::Key_F17:
+         case Qt::Key_F18:
+         case Qt::Key_F19:
+         case Qt::Key_F20:
+             sendFunctionKey(e->key()-Qt::Key_F1,*e);
+         default:
+-#ifdef Q_WS_WIN
+ goAhead:
+-#endif
+ #ifdef Q_WS_MAC
+             //check for Ctrl keys on Mac-> MetaModifier was set
+             if (e->modifiers()&Qt::MetaModifier && e->text().isEmpty()
+                 && e->key()>=Qt::Key_A && e->key()<=Qt::Key_Z)
+             {
+                 sendText((QChar)(e->key()&0x1f));
+             }
+             else

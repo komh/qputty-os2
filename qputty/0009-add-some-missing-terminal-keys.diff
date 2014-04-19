@@ -1,0 +1,63 @@
+# HG changeset patch
+# Parent 0ec3202ca1ead21f162c6d38ec73df6579f0d5f5
+# User KO Myung-Hun <komh@chollian.net>
+Add some missing terminal keys
+
+such as Insert, Delete, Page Up and Page Down
+
+
+diff --git a/terminalWidget.cpp b/terminalWidget.cpp
+--- a/terminalWidget.cpp
++++ b/terminalWidget.cpp
+@@ -437,36 +437,51 @@
+                 goto goAhead;
+             }
+             break;
+         case Qt::Key_Insert:
+             if(e->modifiers()==Qt::ShiftModifier)
+             {
+                 paste();
+             }
++            else
++            {
++                sendEditKey('2',*e);
++            }
++            break;
++        case Qt::Key_Delete:
++            sendEditKey('3',*e);
+             break;
+         case Qt::Key_PageUp:
+             if(e->modifiers()==Qt::ShiftModifier)
+             {
+                 scrollTermBy(-_inst->term->rows/2);
+             }
+             else if(e->modifiers()==Qt::ControlModifier)
+             {
+                 scrollTermBy(-1);
+             }
++            else
++            {
++                sendEditKey('5',*e);
++            }
+             break;
+         case Qt::Key_PageDown:
+             if(e->modifiers()==Qt::ShiftModifier)
+             {
+                 scrollTermBy(_inst->term->rows/2);
+             }                                        
+             else if(e->modifiers()==Qt::ControlModifier)
+             {
+                 scrollTermBy(1);
+             }
++            else
++            {
++                sendEditKey('6',*e);
++            }
+             break;
+         case Qt::Key_Tab:
+             if(e->modifiers()==Qt::ShiftModifier)
+             {
+                 sendKey('Z');
+             }
+             else
+             {

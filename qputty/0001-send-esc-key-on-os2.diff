@@ -1,0 +1,30 @@
+# HG changeset patch
+# Parent 53c96ab95251c1b45e4de927c1fe2dcc33e60b34
+# User KO Myung-Hun <komh@chollian.net>
+Send ESC key on OS/2
+
+diff --git a/terminalWidget.cpp b/terminalWidget.cpp
+--- a/terminalWidget.cpp
++++ b/terminalWidget.cpp
+@@ -438,16 +438,21 @@
+             {
+                 sendKey('Z');
+             }
+             else
+             {
+                 sendText(e->text());
+             }
+             break;
++#ifdef Q_WS_PM
++        case Qt::Key_Escape:
++            sendText("\033");
++            break;
++#endif
+         case Qt::Key_Up:
+             sendCursorKey('A',*e);
+             break;
+         case Qt::Key_Down:
+             sendCursorKey('B',*e);
+             break;
+         case Qt::Key_Right:
+             sendCursorKey('C',*e);

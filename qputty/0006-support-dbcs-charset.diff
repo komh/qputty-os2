@@ -1,0 +1,549 @@
+# HG changeset patch
+# Parent 6802a2151b1ca9c08b710715f8fbde1f9cb61e1f
+# User KO Myung-Hun <komh@chollian.net>
+Support DBCS charset
+
+diff --git a/qPutty.pri b/qPutty.pri
+--- a/qPutty.pri
++++ b/qPutty.pri
+@@ -127,22 +127,22 @@
+             $$PUTTY_HOME/unix/uxnet.c \
+             $$PUTTY_HOME/unix/uxnoise.c \
+             $$PUTTY_HOME/unix/uxprint.c \
+             $$PUTTY_HOME/unix/uxproxy.c \
+             $$PUTTY_HOME/unix/uxsel.c \
+             $$PUTTY_HOME/unix/uxser.c \
+             $$PUTTY_HOME/unix/uxsignal.c \
+             $$PUTTY_HOME/unix/uxstore.c \
+-            $$PUTTY_HOME/unix/uxucs.c \
+             $$PUTTY_HOME/unix/xkeysym.c \
+             $$PUTTY_HOME/unix/xpmpucfg.c \
+             $$PUTTY_HOME/unix/xpmputty.c \
+             $$PUTTY_HOME/unix/gtkcfg.c \
+-            $$QPUTTY_HOME/uxputty.c 
++            $$QPUTTY_HOME/uxputty.c \
++            $$QPUTTY_HOME/uxucs.c
+ 
+     contains(PUTTY_RELEASE,yes){
+         DEFINES *= PUTTY_RELEASE
+         KERBEROS=no
+     } else {
+         contains(KERBEROS,yes){
+             contains(GSSGLUE,yes) {
+                 LIBS *= -lgssglue
+diff --git a/terminalCursor.cpp b/terminalCursor.cpp
+--- a/terminalCursor.cpp
++++ b/terminalCursor.cpp
+@@ -48,17 +48,17 @@
+     return widget()->_inst->term->dispcursy;
+ }
+ 
+ void
+ Cursor::setText(const QString& text,unsigned long attr)
+ {
+     _text=text;
+     _attr=attr;
+-    QRect r(col()*widget()->_inst->font_width,line()*widget()->_inst->font_height,widget()->_inst->font_width,widget()->_inst->font_height);
++    QRect r(col()*widget()->_inst->font_width,line()*widget()->_inst->font_height,text.toLocal8Bit().size()*widget()->_inst->font_width,widget()->_inst->font_height);
+     switch(_shape)
+     {
+         case Block:
+             _rect=r;
+             break;
+         case Underline:
+             _rect=r.adjusted(0,r.height()-_shapeWidth,0,0);
+             break;
+diff --git a/terminalWidget.cpp b/terminalWidget.cpp
+--- a/terminalWidget.cpp
++++ b/terminalWidget.cpp
+@@ -87,34 +87,34 @@
+     _cursor.setText(decode(text),attr);
+ }
+ 
+ void
+ Widget::insertText(int col,int line,const QString& text,unsigned long /*attr*/)
+ {
+     int x=col*_inst->font_width;
+     int y=line*_inst->font_height;
+-    update(_transform.mapRect(QRect(x,y,text.toLocal8Bit().size()*_inst->font_width,_inst->font_height)));
++    update(_transform.mapRect(QRect(x,y,decode(text).toLocal8Bit().size()*_inst->font_width,_inst->font_height)));
+ }
+ 
+ void 
+ Widget::sendText(const QString& text) const
+ {
+     QByteArray ba = _inst->translation->fromUnicode(text);
+     ldisc_send(_inst->ldisc,ba.data(),ba.size(),0);
+ }
+ 
+ void 
+ Widget::setSelectedText(const QString& text)
+ {
+-    _selectedText=text;
++    _selectedText=decode(text);
+ #if defined(Q_WS_WIN) || defined(Q_WS_PM)
+-    QApplication::clipboard()->setText(text);
++    QApplication::clipboard()->setText(_selectedText);
+ #else
+-    QApplication::clipboard()->setText(text,QClipboard::Selection);
++    QApplication::clipboard()->setText(_selectedText,QClipboard::Selection);
+ #endif
+ }
+ 
+ void
+ Widget::requestPaste()
+ {
+     paste();
+ }
+@@ -728,20 +728,33 @@
+         else
+         {
+             s.append(text[i]);
+         }
+     }
+     return s;
+ }
+ #else
+-const QString&
++QString
+ Widget::decode(const QString& text) const
+ {
+-    return text;
++    if(!is_dbcs_charset(_inst->ucsdata.line_codepage))
++        return text;
++
++    QByteArray ba;
++
++    for(int i=0;i<text.size();++i)
++    {
++        if (DIRECT_CHAR(text[i].unicode()))
++            ba.append(text[i].cell());
++        else
++            ba.append(text[i]);
++    }
++
++    return _inst->translation->toUnicode(ba);
+ }
+ #endif
+ 
+ QFont
+ Widget::font(unsigned long attr) const
+ {
+     QFont f(QWidget::font());
+     f.setUnderline(attr&ATTR_UNDER);
+@@ -892,19 +905,28 @@
+     {
+         unsigned long attr=_inst->term->disptext[line]->chars[sCol].attr;
+         text.clear();
+         r.setY(line*_inst->font_height);
+         r.setX(sCol*_inst->font_width);
+         QChar lc;
+         QChar c;
+         bool flush=false;
++        bool was_dbcs_leadbyte = false;
+         for(int col=sCol;col<eCol;++col)
+         {
+             c=((int)_inst->term->disptext[line]->chars[col].chr);
++
++            if (was_dbcs_leadbyte)
++            {
++                text.append(c);
++                was_dbcs_leadbyte = 0;
++                continue;
++            }
++
+             if(_text.isLdc(c))
+             {
+                 if(lc.isNull())
+                 {
+                     lc=c;
+                     flush=text.isEmpty()?false:true;
+                 }
+                 else if(lc==c)
+@@ -924,35 +946,43 @@
+                     lc=0;
+                     flush=true;
+                 }
+                 else
+                 {
+                     flush=false;
+                 }
+             }
++
++            if (DIRECT_CHAR(c.unicode()) && is_dbcs_leadbyte(_inst->ucsdata.line_codepage, c.unicode()))
++            {
++                text.append(c);
++                was_dbcs_leadbyte = 1;
++            }
++            else
+             if(((_inst->term->disptext[line]->chars[col].attr & ~TATTR_COMBINING) == (attr & ~TATTR_COMBINING)) && !flush)
+             {
+                 text.append(c);
+             }
+             else
+             {
+-                r.setWidth(text.toLocal8Bit().size()*_inst->font_width);
++                r.setWidth(decode(text).toLocal8Bit().size()*_inst->font_width);
+                 r.setHeight(_inst->font_height);
+                 _text.draw(_painter,r,decode(text),attr);
+ 
+                 r.setX(col*_inst->font_width);
+                 text.clear();
+                 text.append(c);
+                 attr=_inst->term->disptext[line]->chars[col].attr;
+             }
+ 
+-            col += QString(c).toLocal8Bit().size() - 1;
++            if (!is_dbcs_charset(_inst->ucsdata.line_codepage))
++                col += QString(c).toLocal8Bit().size() - 1;
+         }
+-        r.setWidth(text.toLocal8Bit().size()*_inst->font_width);
++        r.setWidth(decode(text).toLocal8Bit().size()*_inst->font_width);
+         r.setHeight(_inst->font_height);
+         _text.draw(_painter,r,decode(text),attr);
+     }
+ }
+ 
+ bool
+ Widget::eventFilter(QObject* o,QEvent* e)
+ {
+diff --git a/terminalWidget.h b/terminalWidget.h
+--- a/terminalWidget.h
++++ b/terminalWidget.h
+@@ -100,17 +100,17 @@
+     virtual void sendKey(char k,char c='[') const;
+     virtual void sendFunctionKey(int i,const QKeyEvent& e) const;
+     virtual void sendCursorKey(char k,const QKeyEvent& e) const;
+     virtual void sendEditKey(char k,const QKeyEvent& e) const;
+     virtual void scrollTermBy(int lineCount);
+ #ifdef Q_WS_WIN
+     virtual QString decode(const QString& text) const;
+ #else
+-    virtual const QString& decode(const QString& text) const;
++    virtual QString decode(const QString& text) const;
+ #endif
+     virtual QFont font(unsigned long attr) const;
+     virtual const QColor& fgColor(unsigned long attr,bool cursor=false) const;
+     virtual const QColor& bgColor(unsigned long attr,bool cursor=false) const;
+     virtual Mouse_Button puttyMouseButton(Qt::MouseButton b) const;
+     virtual Mouse_Button puttyMouseButtonTranslate(Qt::MouseButton b) const;
+     virtual void puttyTermMouse(QMouseEvent* e,Mouse_Action a) const;
+     virtual Qt::MouseButton mouseMoveButton(Qt::MouseButtons buttons) const;
+diff --git a/uxucs.c b/uxucs.c
+new file mode 100644
+--- /dev/null
++++ b/uxucs.c
+@@ -0,0 +1,313 @@
++#include <stdio.h>
++#include <stdlib.h>
++#include <ctype.h>
++#include <locale.h>
++#include <limits.h>
++#include <wchar.h>
++
++#include <time.h>
++
++#include "putty.h"
++#include "charset.h"
++#include "terminal.h"
++#include "misc.h"
++
++/*
++ * Unix Unicode-handling routines.
++ */
++
++int is_dbcs_charset(int codepage)
++{
++    switch (codepage) {
++    case CS_CP949 :
++    case CS_CP950 :
++    case CS_SJIS  :
++        return 1;
++    }
++
++    return 0;
++}
++
++int is_dbcs_leadbyte(int codepage, char byte)
++{
++    BYTE b = (BYTE)byte;
++
++    switch (codepage) {
++    case CS_CP949 :
++        return b >= 0x8F && b <= 0xFE;
++    case CS_CP950 :
++        return b >= 0x81 && b <= 0xFE;
++    case CS_SJIS :
++        return (b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC);
++    }
++
++    return 0;
++}
++
++int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
++             wchar_t *wcstr, int wclen)
++{
++    if (codepage == DEFAULT_CODEPAGE) {
++        int n = 0;
++        mbstate_t state;
++
++        memset(&state, 0, sizeof state);
++        setlocale(LC_CTYPE, "");
++
++        while (mblen > 0) {
++            size_t i = mbrtowc(wcstr+n, mbstr, (size_t)mblen, &state);
++            if (i == (size_t)-1 || i == (size_t)-2)
++                break;
++            n++;
++            mbstr += i;
++            mblen -= i;
++        }
++
++        setlocale(LC_CTYPE, "C");
++
++        return n;
++    } else if (codepage == CS_NONE) {
++        int n = 0;
++
++        while (mblen > 0) {
++            wcstr[n] = 0xD800 | (mbstr[0] & 0xFF);
++            n++;
++            mbstr++;
++            mblen--;
++        }
++
++        return n;
++    } else if (is_dbcs_charset(codepage))
++        return 0;
++    else
++        return charset_to_unicode(&mbstr, &mblen, wcstr, wclen, codepage,
++                                  NULL, NULL, 0);
++}
++
++int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
++             char *mbstr, int mblen, char *defchr, int *defused,
++             struct unicode_data *ucsdata)
++{
++    /* FIXME: we should remove the defused param completely... */
++    if (defused)
++        *defused = 0;
++
++    if (codepage == DEFAULT_CODEPAGE) {
++        char output[MB_LEN_MAX];
++        mbstate_t state;
++        int n = 0;
++
++        memset(&state, 0, sizeof state);
++        setlocale(LC_CTYPE, "");
++
++        while (wclen > 0) {
++            int i = wcrtomb(output, wcstr[0], &state);
++            if (i == (size_t)-1 || i > n - mblen)
++                break;
++            memcpy(mbstr+n, output, i);
++            n += i;
++            wcstr++;
++            wclen--;
++        }
++
++        setlocale(LC_CTYPE, "C");
++
++        return n;
++    } else if (codepage == CS_NONE) {
++        int n = 0;
++        while (wclen > 0 && n < mblen) {
++            if (*wcstr >= 0xD800 && *wcstr < 0xD900)
++                mbstr[n++] = (*wcstr & 0xFF);
++            else if (defchr)
++                mbstr[n++] = *defchr;
++            wcstr++;
++            wclen--;
++        }
++        return n;
++    } else if (is_dbcs_charset(codepage)) {
++        return 0;
++    } else {
++        return charset_from_unicode(&wcstr, &wclen, mbstr, mblen, codepage,
++                                    NULL, defchr?defchr:NULL, defchr?1:0);
++    }
++}
++
++/*
++ * Return value is TRUE if pterm is to run in direct-to-font mode.
++ */
++int init_ucs(struct unicode_data *ucsdata, char *linecharset,
++             int utf8_override, int font_charset, int vtmode)
++{
++    int i, ret = 0;
++
++    /*
++     * In the platform-independent parts of the code, font_codepage
++     * is used only for system DBCS support - which we don't
++     * support at all. So we set this to something which will never
++     * be used.
++     */
++    ucsdata->font_codepage = -1;
++
++    /*
++     * If utf8_override is set and the POSIX locale settings
++     * dictate a UTF-8 character set, then just go straight for
++     * UTF-8.
++     */
++    ucsdata->line_codepage = CS_NONE;
++    if (utf8_override) {
++        const char *s;
++        if (((s = getenv("LC_ALL"))   && *s) ||
++            ((s = getenv("LC_CTYPE")) && *s) ||
++            ((s = getenv("LANG"))     && *s)) {
++            if (strstr(s, "UTF-8"))
++                ucsdata->line_codepage = CS_UTF8;
++        }
++    }
++
++    /*
++     * Failing that, line_codepage should be decoded from the
++     * specification in cfg.
++     */
++    if (ucsdata->line_codepage == CS_NONE)
++        ucsdata->line_codepage = decode_codepage(linecharset);
++
++    /*
++     * If line_codepage is _still_ CS_NONE, we assume we're using
++     * the font's own encoding. This has been passed in to us, so
++     * we use that. If it's still CS_NONE after _that_ - i.e. the
++     * font we were given had an incomprehensible charset - then we
++     * fall back to using the D800 page.
++     */
++    if (ucsdata->line_codepage == CS_NONE)
++        ucsdata->line_codepage = font_charset;
++
++    if (ucsdata->line_codepage == CS_NONE)
++        ret = 1;
++
++    /* For DBCS, force direct to char */
++    if (is_dbcs_charset(ucsdata->line_codepage))
++    {
++        for (i = 0; i < 32; i++)
++            ucsdata->unitab_line[i] = i;
++        for (i = 32; i < 256; i++)
++            ucsdata->unitab_line[i] = 0xD800 | i;
++        ucsdata->unitab_line[127] = 127;
++
++        ucsdata->dbcs_screenfont = 1;
++        ret = 1;
++    } else
++
++    /*
++     * Set up unitab_line, by translating each individual character
++     * in the line codepage into Unicode.
++     */
++    for (i = 0; i < 256; i++) {
++        char c[1], *p;
++        wchar_t wc[1];
++        int len;
++        c[0] = i;
++        p = c;
++        len = 1;
++        if (ucsdata->line_codepage == CS_NONE)
++            ucsdata->unitab_line[i] = 0xD800 | i;
++        else if (1 == charset_to_unicode(&p, &len, wc, 1,
++                                         ucsdata->line_codepage,
++                                         NULL, L"", 0))
++            ucsdata->unitab_line[i] = wc[0];
++        else
++            ucsdata->unitab_line[i] = 0xFFFD;
++    }
++
++    /*
++     * Set up unitab_xterm. This is the same as unitab_line except
++     * in the line-drawing regions, where it follows the Unicode
++     * encoding.
++     *
++     * (Note that the strange X encoding of line-drawing characters
++     * in the bottom 32 glyphs of ISO8859-1 fonts is taken care of
++     * by the font encoding, which will spot such a font and act as
++     * if it were in a variant encoding of ISO8859-1.)
++     */
++    for (i = 0; i < 256; i++) {
++        static const wchar_t unitab_xterm_std[32] = {
++            0x2666, 0x2592, 0x2409, 0x240c, 0x240d, 0x240a, 0x00b0, 0x00b1,
++            0x2424, 0x240b, 0x2518, 0x2510, 0x250c, 0x2514, 0x253c, 0x23ba,
++            0x23bb, 0x2500, 0x23bc, 0x23bd, 0x251c, 0x2524, 0x2534, 0x252c,
++            0x2502, 0x2264, 0x2265, 0x03c0, 0x2260, 0x00a3, 0x00b7, 0x0020
++        };
++        static const wchar_t unitab_xterm_poorman[32] =
++            L"*#****o~**+++++-----++++|****L. ";
++
++        const wchar_t *ptr;
++
++        if (vtmode == VT_POORMAN)
++            ptr = unitab_xterm_poorman;
++        else
++            ptr = unitab_xterm_std;
++
++        if (i >= 0x5F && i < 0x7F)
++            ucsdata->unitab_xterm[i] = ptr[i & 0x1F];
++        else
++            ucsdata->unitab_xterm[i] = ucsdata->unitab_line[i];
++    }
++
++    /*
++     * Set up unitab_scoacs. The SCO Alternate Character Set is
++     * simply CP437.
++     */
++    for (i = 0; i < 256; i++) {
++        char c[1], *p;
++        wchar_t wc[1];
++        int len;
++        c[0] = i;
++        p = c;
++        len = 1;
++        if (1 == charset_to_unicode(&p, &len, wc, 1, CS_CP437, NULL, L"", 0))
++            ucsdata->unitab_scoacs[i] = wc[0];
++        else
++            ucsdata->unitab_scoacs[i] = 0xFFFD;
++    }
++
++    /*
++     * Find the control characters in the line codepage. For
++     * direct-to-font mode using the D800 hack, we assume 00-1F and
++     * 7F are controls, but allow 80-9F through. (It's as good a
++     * guess as anything; and my bet is that half the weird fonts
++     * used in this way will be IBM or MS code pages anyway.)
++     */
++    for (i = 0; i < 256; i++) {
++        int lineval = ucsdata->unitab_line[i];
++        if (lineval < ' ' || (lineval >= 0x7F && lineval < 0xA0) ||
++            (lineval >= 0xD800 && lineval < 0xD820) || (lineval == 0xD87F))
++            ucsdata->unitab_ctrl[i] = i;
++        else
++            ucsdata->unitab_ctrl[i] = 0xFF;
++    }
++
++    return ret;
++}
++
++const char *cp_name(int codepage)
++{
++    if (codepage == CS_NONE)
++        return "Use font encoding";
++    return charset_to_localenc(codepage);
++}
++
++const char *cp_enumerate(int index)
++{
++    int charset;
++    if (index == 0)
++        return "Use font encoding";
++    charset = charset_localenc_nth(index-1);
++    if (charset == CS_NONE)
++        return NULL;
++    return charset_to_localenc(charset);
++}
++
++int decode_codepage(char *cp_name)
++{
++    if (!*cp_name)
++        return CS_NONE;		       /* use font encoding */
++    return charset_from_localenc(cp_name);
++}

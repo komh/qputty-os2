@@ -1,0 +1,171 @@
+# HG changeset patch
+# Parent a4a48510e4ef779df63093946a8f3f3606cb0a29
+# User KO Myung-Hun <komh@chollian.net>
+Process DBCS correctly on terminal
+
+diff --git a/qPutty.cpp b/qPutty.cpp
+--- a/qPutty.cpp
++++ b/qPutty.cpp
+@@ -228,17 +228,17 @@
+     {
+         startDetachedProcess(QString("%1 -load %2").arg(QCoreApplication::arguments().at(0)).arg(a->text()));
+     }
+ }
+ 
+ void 
+ QPutty::setTitle()
+ {
+-    setTitle(_inst.wintitle);
++    setTitle(_inst.translation->toUnicode(_inst.wintitle));
+ }
+ 
+ void
+ QPutty::insertText(int x,int y,const QString& text,unsigned long attr)
+ {
+     _terminalWidget->insertText(x,y,text,attr);
+ }
+ 
+@@ -477,16 +477,19 @@
+         delete _terminalWidget;
+         _terminalWidget=createTerminalWidget();
+         connect(&_vBar,SIGNAL(valueChanged(int)),_terminalWidget,SLOT(scrollTermTo(int)));
+         connect(_terminalWidget,SIGNAL(termSizeChanged()),this,SLOT(setTitle()));
+         _layout.addWidget((QWidget*)_terminalWidget->realObject(),0,1);
+     }
+     _inst.width = _inst.cfg.width;
+     _inst.height = _inst.cfg.height;
++    _inst.translation = QTextCodec::codecForName(_inst.cfg.line_codepage);
++    if (!_inst.translation)
++        _inst.translation = QTextCodec::codecForName("UTF-8");
+     if(!_inst.reconfiguring)
+     {
+         _inst.term = term_init(&_inst.cfg, &_inst.ucsdata, &_inst);
+         term_provide_logctx(_inst.term, _inst.logctx);
+     }
+     term_size(_inst.term,_inst.height,_inst.width,_inst.cfg.savelines);
+     if(!_inst.reconfiguring)
+     {
+diff --git a/qtwin.cpp b/qtwin.cpp
+--- a/qtwin.cpp
++++ b/qtwin.cpp
+@@ -523,17 +523,17 @@
+     }
+ }
+ 
+ void set_title(void *frontend, char *title)
+ {
+     struct gui_data *inst = (struct gui_data *)frontend;
+     strncpy(inst->wintitle, title, lenof(inst->wintitle));
+     inst->wintitle[lenof(inst->wintitle)-1] = '\0';
+-    qPutty->setTitle(title);
++    qPutty->setTitle(inst->translation->toUnicode(title));
+ }
+ 
+ void set_icon(void *frontend, char *title)
+ {
+     struct gui_data *inst = (struct gui_data *)frontend;
+     strncpy(inst->icontitle, title, lenof(inst->icontitle));
+     inst->icontitle[lenof(inst->icontitle)-1] = '\0';
+ }
+diff --git a/structs.h b/structs.h
+--- a/structs.h
++++ b/structs.h
+@@ -30,17 +30,17 @@
+ #include <putty.h>
+ #include <terminal.h>
+ #ifdef __cplusplus
+ }
+ #endif
+ #include <QFont>
+ #include <QColor>
+ #include <QColormap>
+-
++#include <QTextCodec>
+ 
+ #define NCFGCOLOURS (lenof(((Config *)0)->colours))
+ #define NEXTCOLOURS 240 /* 216 colour-cube plus 24 shades of grey */
+ #define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
+ 
+ struct gui_data {
+     QFont* fonts[4];                 /* normal, bold, wide, widebold */
+     struct {
+@@ -74,16 +74,17 @@
+     int exited;
+     struct unicode_data ucsdata;
+     Config cfg;
+     void *eventlogstuff;
+     const char *progname;
+     int ngtkargs;
+     quint32 input_event_time; /* Timestamp of the most recent input event. */
+     int reconfiguring;
++    QTextCodec *translation;
+ };
+ 
+ struct eventlog_stuff {
+     struct controlbox *eventbox;
+     union control *listctrl;
+     char **events;
+     int nevents, negsize;
+     char *seldata;
+diff --git a/terminalWidget.cpp b/terminalWidget.cpp
+--- a/terminalWidget.cpp
++++ b/terminalWidget.cpp
+@@ -87,23 +87,24 @@
+     _cursor.setText(decode(text),attr);
+ }
+ 
+ void
+ Widget::insertText(int col,int line,const QString& text,unsigned long /*attr*/)
+ {
+     int x=col*_inst->font_width;
+     int y=line*_inst->font_height;
+-    update(_transform.mapRect(QRect(x,y,text.size()*_inst->font_width,_inst->font_height)));
++    update(_transform.mapRect(QRect(x,y,text.toLocal8Bit().size()*_inst->font_width,_inst->font_height)));
+ }
+ 
+ void 
+ Widget::sendText(const QString& text) const
+ {
+-    ldisc_send(_inst->ldisc,text.toLocal8Bit().data(),text.size(),0);
++    QByteArray ba = _inst->translation->fromUnicode(text);
++    ldisc_send(_inst->ldisc,ba.data(),ba.size(),0);
+ }
+ 
+ void 
+ Widget::setSelectedText(const QString& text)
+ {
+     _selectedText=text;
+ #if defined(Q_WS_WIN) || defined(Q_WS_PM)
+     QApplication::clipboard()->setText(text);
+@@ -905,27 +906,29 @@
+                 }
+             }
+             if(((_inst->term->disptext[line]->chars[col].attr & ~TATTR_COMBINING) == (attr & ~TATTR_COMBINING)) && !flush)
+             {
+                 text.append(c);
+             }
+             else
+             {
+-                r.setWidth(text.size()*_inst->font_width);
++                r.setWidth(text.toLocal8Bit().size()*_inst->font_width);
+                 r.setHeight(_inst->font_height);
+                 _text.draw(_painter,r,decode(text),attr);
+ 
+                 r.setX(col*_inst->font_width);
+                 text.clear();
+                 text.append(c);
+                 attr=_inst->term->disptext[line]->chars[col].attr;
+             }
++
++            col += QString(c).toLocal8Bit().size() - 1;
+         }
+-        r.setWidth(text.size()*_inst->font_width);
++        r.setWidth(text.toLocal8Bit().size()*_inst->font_width);
+         r.setHeight(_inst->font_height);
+         _text.draw(_painter,r,decode(text),attr);
+     }
+ }
+ 
+ bool
+ Widget::eventFilter(QObject* o,QEvent* e)
+ {

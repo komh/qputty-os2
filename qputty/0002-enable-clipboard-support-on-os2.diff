@@ -1,0 +1,27 @@
+# HG changeset patch
+# Parent c81c178606edd2b7c1576553bea59017fe59bb38
+# User KO Myung-Hun <komh@chollian.net>
+Enable clipbaord support on OS/2
+
+diff --git a/terminalWidget.cpp b/terminalWidget.cpp
+--- a/terminalWidget.cpp
++++ b/terminalWidget.cpp
+@@ -100,17 +100,17 @@
+ {
+     ldisc_send(_inst->ldisc,text.toLocal8Bit().data(),text.size(),0);
+ }
+ 
+ void 
+ Widget::setSelectedText(const QString& text)
+ {
+     _selectedText=text;
+-#ifdef Q_WS_WIN
++#if defined(Q_WS_WIN) || defined(Q_WS_PM)
+     QApplication::clipboard()->setText(text);
+ #else
+     QApplication::clipboard()->setText(text,QClipboard::Selection);
+ #endif
+ }
+ 
+ void
+ Widget::requestPaste()

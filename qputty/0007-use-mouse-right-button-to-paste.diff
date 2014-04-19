@@ -1,0 +1,35 @@
+# HG changeset patch
+# Parent d2025a53fe1dca707afc00a65f64270f1f2451a7
+# User KO Myung-Hun <komh@chollian.net>
+Use mouse right button to paste and mouse middle button to extend
+
+diff --git a/terminalWidget.cpp b/terminalWidget.cpp
+--- a/terminalWidget.cpp
++++ b/terminalWidget.cpp
+@@ -824,24 +824,24 @@
+ Mouse_Button 
+ Widget::puttyMouseButtonTranslate(Qt::MouseButton button) const
+ {
+     switch(button)
+     {
+         case Qt::LeftButton:
+             return MBT_SELECT;
+         case Qt::RightButton:
+-#ifdef Q_WS_WIN
++#if defined(Q_WS_WIN) || defined(Q_WS_PM)
+             return _inst->cfg.mouse_is_xterm == 1 ? MBT_EXTEND : MBT_PASTE;
+ #else
+             return MBT_EXTEND;
+ #endif
+         case Qt::MidButton:
+         default:
+-#ifdef Q_WS_WIN
++#if defined(Q_WS_WIN) || defined(Q_WS_PM)
+             return _inst->cfg.mouse_is_xterm == 1 ? MBT_PASTE : MBT_EXTEND;
+ #else
+             return MBT_PASTE;
+ #endif
+     }
+ }
+ 
+ void 
