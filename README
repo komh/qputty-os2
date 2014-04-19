@@ -78,7 +78,7 @@
   
   - MIT Kerberos V 를 지원하지 않습니다
   
-  - https://github.com/komh/qputty/issues 를 보십시오
+  - https://github.com/komh/qputty-os2/issues 를 보십시오
   
 8. 할 것들...
 -------------
@@ -87,7 +87,7 @@
   
   - MIT Kerberos V 지원하기
   
-  - 보다 자세한 것은 https://github.com/komh/qputty/issues 를 보십시오
+  - 보다 자세한 것은 https://github.com/komh/qputty-os2/issues 를 보십시오
   
 9. 판번호 보기
 --------------
@@ -190,6 +190,6 @@ qputty/qputty/.hg/patches 에 복사합니다.
 
   github 의 이슈 트래커를 이용하십시오.
   
-    https://github.com/komh/qputty/issues
+    https://github.com/komh/qputty-os2/issues
     
 고명훈

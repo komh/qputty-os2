@@ -78,7 +78,7 @@ clipboard.
   
   - MIT Kerberos V is not supported
   
-  - See https://github.com/komh/qputty/issues 
+  - See https://github.com/komh/qputty-os2/issues 
   
 8. TODOs...
 -----------
@@ -87,7 +87,7 @@ clipboard.
   
   - Support MIT Kerberos V
   
-  - For more details, see https://github.com/komh/qputty/issues
+  - For more details, see https://github.com/komh/qputty-os2/issues
   
 9. History
 ----------
@@ -190,6 +190,6 @@ visit the following URL.
 
   Use the issue trackers of github.
   
-    https://github.com/komh/qputty/issues
+    https://github.com/komh/qputty-os2/issues
                    
 KO Myung-Hun
