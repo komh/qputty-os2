@@ -1,0 +1,197 @@
+                               QPutty for OS/2
+                              -----------------
+                            
+1. 소개
+-------
+  
+  이 프로그램은 QPutty 를 OS/2 용으로 포팅한 것입니다.
+  
+2. 제작 환경
+------------
+  
+  - 한국어판 OS/2 Warp v4 with FixPak #15
+  
+  - GCC v4.7.3
+  
+  - OS/2 ToolKit v4.5
+  
+  - GNU Make v3.81r3
+
+  - Qt v4.7.3GA2  
+  
+  - Qt Creator v2.2.1
+  
+  - Subversion v1.6.16
+  
+  - Mercurial v1.6.3
+      
+3. 실행에 필요한 환경
+---------------------
+
+  - 런타임 : kLIBC v0.6.5, Qt v4.7.3GA2
+
+4. 시험 환경
+------------
+
+  한국어판 OS/2 Warp v4 with FixPak #15 와 eComStation 2.1 에서 
+시험했습니다.
+
+5. 설치
+-------
+
+  qPutty.exe 를 아무 디렉토리에 넣어 두시면 됩니다.
+  
+6. 사용법
+---------
+
+6.1 마우스
+----------
+
+6.1.1 왼쪽 버튼
+---------------
+
+  터미널 화면의 내용을 선택한 후 클립보드에 복사합니다.
+
+6.1.2 오른쪽 버튼
+-----------------
+
+  클립보드에 있는 내용을 터미널로 붙여넣기 합니다.
+  
+6.1.3 가운데 버튼
+-----------------
+
+  여러번 나누어서 이어서 선택한 후, 선택된 터미널 화면의 내용을 클립보드에 
+복사합니다.
+
+6.2 바로가기 글쇠
+-----------------
+
+6.2.1 Shift-Enter
+------------------
+
+  터미널 문자셋을 바꾸기 위한 팝업 메뉴를 보여줍니다.
+
+7. 제한 사항 또는 알려진 벌레
+-----------------------------
+
+  - Putty r9181 소스를 사용합니다
+  
+  - MIT Kerberos V 를 지원하지 않습니다
+  
+  - https://github.com/komh/qputty/issues 를 보십시오
+  
+8. 할 것들...
+-------------
+
+  - 최신 Putty 소스 사용하기
+  
+  - MIT Kerberos V 지원하기
+  
+  - 보다 자세한 것은 https://github.com/komh/qputty/issues 를 보십시오
+  
+9. 판번호 보기
+--------------
+
+  - qputty-r330-putty-r9181-r1( 2014/04/19 )
+    .ESC 글쇠 지원( OS/2만 )
+    .Insert, Delete, PageUp, PageDown 글쇠 지원
+    .DBCS 지원
+    .터미널에서 문자셋 바꾸기 지원
+
+10. 소스 컴파일 하기
+--------------------
+
+10.1 필요한 것들...
+-------------------
+
+  - gcc v4.7.3
+  
+  - OS/2 ToolKit v4.5
+  
+  - GNU Make v3.81r3
+  
+  - Qt 4.7.3GA2
+  
+  - Qt Creator v2.2.1
+  
+  - git v1.7.3.2
+  
+  - Subversion v1.6.16
+  
+  - Mercurial v1.6.3
+  
+10.2 소스 받기
+--------------
+  
+  먼저 qputty 디렉토리를 만듭니다.
+  
+10.2.1 Putty 소스 받기
+----------------------
+
+  qputty 디렉토리에서 다음을 수행합니다.
+  
+    svn co svn://svn.tartarus.org/sgt/putty
+
+  성공적으로 끝마쳤으면 다음을 수행합니다.
+  
+    svn update -r9181
+    
+  이후 같이 제공되는 putty 용 패치를 번호 순서대로 다음과 같이 적용합니다.
+  
+    patch -p0 < 패치파일    
+   
+10.2.2 QPutty 소스 받기
+-----------------------
+
+  qputty 디렉토리에서 다음을 수행합니다.
+  
+    hg clone http://qputty.hg.sourceforge.net/hgweb/qputty
+    
+  성공적으로 끝마쳤으면 같이 제공되는 qputty 용 패치를 
+qputty/qputty/.hg/patches 에 복사합니다.
+
+  이후, qputty/qputty 에서 다음을 수행합니다.
+  
+    hg qpush --all
+    
+10.3 컴파일 하기
+----------------
+
+  소스를 받으셨으면 qputty/qputty 디렉토리에서 qmake.cmd 를 실행시킵니다.
+  
+      qmake.cmd
+      
+  qmake.cmd 가 끝났으면, make 를 실행시킵니다.
+  
+      make
+      
+  성공적으로 마쳤으면 qPutty.exe 가 만들어집니다.
+      
+  Qt Creator 를 사용하고자 한다면, Qt Creator 를 실행시킨 후 qPutty.pro 를 
+엽니다. 그리고 Ctrl-B 를 눌러 빌드하시면 됩니다.
+
+11. 모듈 설명
+-------------
+
+  qPutty.exe : QPutty 실행 파일입니다.
+
+12. QPutty 공식 홈페이지
+------------------------
+
+  http://qputty.sourceforge.net/index.html
+  
+13. 후원하기
+-----------
+
+  QPutty 가 마음에 들어 후원하고 싶으시면, 아래 URL 을 방문해 주십시오.
+
+    http://www.ecomstation.co.kr/komh/donate.html
+
+14. 하고 싶은 말이 있을 때...
+-----------------------------
+
+  github 의 이슈 트래커를 이용하십시오.
+  
+    https://github.com/komh/qputty/issues
+    
+고명훈
