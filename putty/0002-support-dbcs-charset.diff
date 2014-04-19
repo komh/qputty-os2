@@ -1,0 +1,53 @@
+Index: terminal.c
+===================================================================
+--- terminal.c	(revision 9181)
++++ terminal.c	(working copy)
+@@ -4994,6 +4994,8 @@
+ 		ch = sresize(ch, chlen, wchar_t);
+ 	    }
+ 	    ch[ccount++] = (wchar_t) tchar;
++	    if (DIRECT_CHAR(tchar) && is_dbcs_leadbyte(term->ucsdata->line_codepage, tchar))
++		ch[ccount++] = newline[j + 1].chr;
+ 
+ 	    if (d->cc_next) {
+ 		termchar *dd = d;
+Index: charset/charset.h
+===================================================================
+--- charset/charset.h	(revision 9181)
++++ charset/charset.h	(working copy)
+@@ -67,6 +67,9 @@
+     CS_VISCII,
+     CS_HP_ROMAN8,
+     CS_DEC_MCS,
++    CS_CP949,
++    CS_CP950,
++    CS_SJIS,
+     CS_UTF8
+ } charset_t;
+ 
+Index: charset/localenc.c
+===================================================================
+--- charset/localenc.c	(revision 9181)
++++ charset/localenc.c	(working copy)
+@@ -74,6 +74,9 @@
+     { "VISCII", CS_VISCII, 1 },
+     { "HP ROMAN8", CS_HP_ROMAN8, 1 },
+     { "DEC MCS", CS_DEC_MCS, 1 },
++    { "CP949", CS_CP949, 1 },
++    { "CP950", CS_CP950, 1 },
++    { "SJIS", CS_SJIS, 1 },
+     { "UTF-8", CS_UTF8, 1 },
+ };
+ 
+Index: putty.h
+===================================================================
+--- putty.h	(revision 9181)
++++ putty.h	(working copy)
+@@ -1033,6 +1033,7 @@
+ #define CP_UTF8 65001
+ #endif
+ /* void init_ucs(void); -- this is now in platform-specific headers */
++int is_dbcs_charset(int codepage);
+ int is_dbcs_leadbyte(int codepage, char byte);
+ int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
+ 	     wchar_t *wcstr, int wclen);

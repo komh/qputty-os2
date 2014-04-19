@@ -1,0 +1,110 @@
+Index: unix/uxnoise.c
+===================================================================
+--- unix/uxnoise.c	(revision 10170)
++++ unix/uxnoise.c	(working copy)
+@@ -3,6 +3,12 @@
+  * generator.
+  */
+ 
++#ifdef __OS2__
++#define INCL_DOS
++#define INCL_DOSERRORS
++#include <os2.h>
++#endif
++
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <errno.h>
+@@ -59,6 +65,7 @@
+ 	func(buf, 32);
+     }
+ 
++#ifndef __OS2__
+     fp = popen("ps -axu 2>/dev/null", "r");
+     if (fp) {
+ 	while ( (ret = fread(buf, 1, sizeof(buf), fp)) > 0)
+@@ -80,6 +87,18 @@
+ 		"Unable to access fallback entropy source\n", strerror(errno));
+ 	exit(1);
+     }
++#else
++    fp = popen("pstat /a 2>NUL", "r");
++    if (fp) {
++	while ( (ret = fread(buf, 1, sizeof(buf), fp)) > 0)
++	    func(buf, ret);
++	pclose(fp);
++    } else if (!got_dev_urandom) {
++	fprintf(stderr, "popen: %s\n"
++		"Unable to access fallback entropy source\n", strerror(errno));
++	exit(1);
++    }
++#endif
+ 
+     read_random_seed(func);
+     random_save_seed();
+@@ -114,6 +133,7 @@
+  */
+ void noise_regular(void)
+ {
++#ifndef __OS2__
+     int fd;
+     int ret;
+     char buf[512];
+@@ -131,6 +151,57 @@
+     }
+     getrusage(RUSAGE_SELF, &rusage);
+     random_add_noise(&rusage, sizeof(rusage));
++#else
++#define BUF_SIZE_CPUUTIL            (sizeof(ULONG) * 8)
++#define BUF_SIZE_SYS_STATE          (64 * 1024)
++#define BUF_SIZE_SYS_STATE_DELTA    4096
++#define BUF_SIZE_SYS_STATE_MARGIN   1024
++
++    ULONG ulCpuCount = 1;
++    void *buf;
++    size_t bufSize;
++    ULONG rc;
++
++    /* Query CPU count */
++    DosPerfSysCall(0x41, 0, ( ULONG )&ulCpuCount, 0);
++
++    bufSize = ulCpuCount * BUF_SIZE_CPUUTIL;
++    buf = malloc(bufSize);
++    if (!buf)
++	return;
++
++    /* Query CPU utilization snapshot */
++    if (!DosPerfSysCall(0x63, (ULONG)buf, 0, 0))
++	random_add_noise(buf, bufSize);
++
++    free(buf);
++
++    bufSize = BUF_SIZE_SYS_STATE;
++
++    /*
++     * Allocate additional memory because DosQuerySysState()
++     * sometimes seems to overwrite to a memory boundary.
++     */
++    buf = malloc(bufSize + BUF_SIZE_SYS_STATE_MARGIN);
++    if (!buf)
++	return;
++
++    do {
++	/* Query all the system information supported by OS */
++	rc = DosQuerySysState(QS_SUPPORTED, 0, 0, 0, (PCHAR)buf, bufSize);
++	if (rc == ERROR_BUFFER_OVERFLOW) {
++	    free(buf);
++
++	    bufSize += BUF_SIZE_SYS_STATE_DELTA;
++	    buf = malloc(bufSize + BUF_SIZE_SYS_STATE_MARGIN);
++	}
++    } while (rc == ERROR_BUFFER_OVERFLOW);
++
++    if( !rc )
++	random_add_noise(buf, bufSize);
++
++    free(buf);
++#endif
+ }
+ 
+ /*
